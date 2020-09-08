@@ -9,30 +9,30 @@ class Card():
         self.value = value
 
 
-class Cashable:
+class Cashable(Card):
     pass
 
 
-class CashCard(Card, Cashable):
+class CashCard(Cashable):
     def __repr__(self):
         return f'<CashCard (${self.value})>'
 
 
-class ActionCard(Card, Cashable):
-    def __init__(self, index, value, name, description):
+class ActionCard(Cashable):
+    def __init__(self, index, value, action_type, description):
         super().__init__(index, value)
-        self.name = name
+        self.action_type = action_type
         self.description = description
 
     def __repr__(self):
-        return f'<ActionCard: {self.name} (${self.value})>'
+        return f'<ActionCard: {self.action_type.value} (${self.value})>'
 
 
 class PropertyCard(Card):
-    def __init__(self, index, value, name, color, rent, buildable):
+    def __init__(self, index, value, name, colors, rent, buildable):
         super().__init__(index, value)
         self.name = name
-        self.color = color
+        self.colors = colors
         self.rent = rent
         self.buildable = buildable
 
@@ -40,15 +40,25 @@ class PropertyCard(Card):
         return f'<PropertyCard: {self.name} (${self.value})>'
 
 
-class RentCard(Card):
-    def __init__(self, index, value, color, wild):
+class RentCard(Cashable):
+    def __init__(self, index, value, colors, wild):
         super().__init__(index, value)
-        self.color = color  # Set
+        self.colors = colors  # Set
         self.wild = wild  # Boolean - Targeting
 
     def __repr__(self):
-        return f'<RentCard: {self.color}>'
+        return f'<RentCard: {self.colors}>'
 
+
+class ActionType(Enum):
+    BDAY = "It's my birthday!"
+    DOUBLE_THE_RENT = "Double the Rent"
+    DEAL_BREAKER = "Deal Breaker"
+    JUST_SAY_NO = "Just Say No!"
+    DEBT_COLLECTOR = "Debt Collector"
+    SLY_DEAL = "Sly Deal"
+    FORCED_DEAL = "Forced Deal"
+    PASS_GO = "Pass Go"
 
 class Color(Enum):
     RED = "red"
@@ -73,36 +83,36 @@ deck = {
     4: PropertyCard(4, 4, HOTEL, {Color.ALL}, [], False),
     5: PropertyCard(5, 4, HOTEL, {Color.ALL}, [], False),
     6: PropertyCard(6, 4, HOTEL, {Color.ALL}, [], False),
-    7: ActionCard(7, 2, "It's my birthday!", "All players give you $2M as a gift."),
-    8: ActionCard(8, 2, "It's my birthday!", "All players give you $2M as a gift."),
-    9: ActionCard(9, 2, "It's my birthday!", "All players give you $2M as a gift."),
-    10: ActionCard(10, 1, "Double the Rent", "Needs to be played with a rent card."),
-    11: ActionCard(11, 1, "Double the Rent", "Needs to be played with a rent card."),
-    12: ActionCard(12, 5, "Deal Breaker", "Steal a complete set from any player (includes any buildings)"),
-    13: ActionCard(13, 5, "Deal Breaker", "Steal a complete set from any player (includes any buildings)"),
-    14: ActionCard(14, 4, "Just Say No!", "Use any time when an action card is played against you."),
-    15: ActionCard(15, 4, "Just Say No!", "Use any time when an action card is played against you."),
-    16: ActionCard(16, 4, "Just Say No!", "Use any time when an action card is played against you."),
-    17: ActionCard(17, 3, "Debt Collector", "Force any player to pay you $5M"),
-    18: ActionCard(18, 3, "Debt Collector", "Force any player to pay you $5M"),
-    19: ActionCard(19, 3, "Debt Collector", "Force any player to pay you $5M"),
-    20: ActionCard(20, 3, "Sly Deal", "Steal a property from a player of your choice (cannot be a part of a full set)!"),
-    21: ActionCard(21, 3, "Sly Deal", "Steal a property from a player of your choice (cannot be a part of a full set)!"),
-    22: ActionCard(22, 3, "Sly Deal", "Steal a property from a player of your choice (cannot be a part of a full set)!"),
-    23: ActionCard(23, 3, "Forced Deal", "Swap any property with another player (cannot be part of a full set)!"),
-    24: ActionCard(24, 3, "Forced Deal", "Swap any property with another player (cannot be part of a full set)!"),
-    25: ActionCard(25, 3, "Forced Deal", "Swap any property with another player (cannot be part of a full set)!"),
-    26: ActionCard(26, 3, "Forced Deal", "Swap any property with another player (cannot be part of a full set)!"),
-    27: ActionCard(27, 1, "Pass Go", "Draw two extra cards!"),
-    28: ActionCard(28, 1, "Pass Go", "Draw two extra cards!"),
-    29: ActionCard(29, 1, "Pass Go", "Draw two extra cards!"),
-    30: ActionCard(30, 1, "Pass Go", "Draw two extra cards!"),
-    31: ActionCard(31, 1, "Pass Go", "Draw two extra cards!"),
-    32: ActionCard(32, 1, "Pass Go", "Draw two extra cards!"),
-    33: ActionCard(33, 1, "Pass Go", "Draw two extra cards!"),
-    34: ActionCard(34, 1, "Pass Go", "Draw two extra cards!"),
-    35: ActionCard(35, 1, "Pass Go", "Draw two extra cards!"),
-    36: ActionCard(36, 1, "Pass Go", "Draw two extra cards!"),
+    7: ActionCard(7, 2, ActionType.BDAY, "All players give you $2M as a gift."),
+    8: ActionCard(8, 2, ActionType.BDAY, "All players give you $2M as a gift."),
+    9: ActionCard(9, 2, ActionType.BDAY, "All players give you $2M as a gift."),
+    10: ActionCard(10, 1, ActionType.DOUBLE_THE_RENT, "Needs to be played with a rent card."),
+    11: ActionCard(11, 1, ActionType.DOUBLE_THE_RENT, "Needs to be played with a rent card."),
+    12: ActionCard(12, 5, ActionType.DEAL_BREAKER, "Steal a complete set from any player (includes any buildings)"),
+    13: ActionCard(13, 5, ActionType.DEAL_BREAKER, "Steal a complete set from any player (includes any buildings)"),
+    14: ActionCard(14, 4, ActionType.JUST_SAY_NO, "Use any time when an action card is played against you."),
+    15: ActionCard(15, 4, ActionType.JUST_SAY_NO, "Use any time when an action card is played against you."),
+    16: ActionCard(16, 4, ActionType.JUST_SAY_NO, "Use any time when an action card is played against you."),
+    17: ActionCard(17, 3, ActionType.DEBT_COLLECTOR, "Force any player to pay you $5M"),
+    18: ActionCard(18, 3, ActionType.DEBT_COLLECTOR, "Force any player to pay you $5M"),
+    19: ActionCard(19, 3, ActionType.DEBT_COLLECTOR, "Force any player to pay you $5M"),
+    20: ActionCard(20, 3, ActionType.SLY_DEAL, "Steal a property from a player of your choice (cannot be a part of a full set)!"),
+    21: ActionCard(21, 3, ActionType.SLY_DEAL, "Steal a property from a player of your choice (cannot be a part of a full set)!"),
+    22: ActionCard(22, 3, ActionType.SLY_DEAL, "Steal a property from a player of your choice (cannot be a part of a full set)!"),
+    23: ActionCard(23, 3, ActionType.FORCED_DEAL, "Swap any property with another player (cannot be part of a full set)!"),
+    24: ActionCard(24, 3, ActionType.FORCED_DEAL, "Swap any property with another player (cannot be part of a full set)!"),
+    25: ActionCard(25, 3, ActionType.FORCED_DEAL, "Swap any property with another player (cannot be part of a full set)!"),
+    26: ActionCard(26, 3, ActionType.FORCED_DEAL, "Swap any property with another player (cannot be part of a full set)!"),
+    27: ActionCard(27, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    28: ActionCard(28, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    29: ActionCard(29, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    30: ActionCard(30, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    31: ActionCard(31, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    32: ActionCard(32, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    33: ActionCard(33, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    34: ActionCard(34, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    35: ActionCard(35, 1, ActionType.PASS_GO, "Draw two extra cards!"),
+    36: ActionCard(36, 1, ActionType.PASS_GO, "Draw two extra cards!"),
     37: PropertyCard(37, 2, "Electric Company", {Color.UTIL}, [1, 2], True),
     38: PropertyCard(38, 2, "Waterworks", {Color.UTIL}, [1, 2], True),
     39: PropertyCard(39, 2, "Pennsylvania Railroad", {Color.RR}, [1, 2, 3, 4], True),

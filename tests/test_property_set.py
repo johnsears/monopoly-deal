@@ -7,12 +7,12 @@ from monopoly_deal.game import PropertySet
 def test_property_set_matches():
     pset = PropertySet(color=Color.BROWN, cards=(deck[43], ))
 
-    assert pset.matches(card=deck[44])  # Another brown card
-    assert pset.matches(card=deck[65])  # Full wild card
-    assert pset.matches(card=deck[73])  # Brown wild card
+    assert pset.matches(colors=deck[44].colors)  # Another brown card
+    assert pset.matches(colors=deck[65].colors)  # Full wild card
+    assert pset.matches(colors=deck[73].colors)  # Brown wild card
 
-    assert not pset.matches(card=deck[54])  # Red card
-    assert not pset.matches(card=deck[67])  # Non Brown wild card
+    assert not pset.matches(colors=deck[54].colors)  # Red card
+    assert not pset.matches(colors=deck[67].colors)  # Non Brown wild card
 
 def test_add_card():
     pset = PropertySet(color=Color.BROWN, cards=(deck[43],))
