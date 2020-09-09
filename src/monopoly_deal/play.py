@@ -1,7 +1,8 @@
 import logging
+from typing import Dict
 
 from monopoly_deal.cards import *
-from monopoly_deal.agents import RandomAgent
+from monopoly_deal.agents import RandomAgent, Agent
 from monopoly_deal.actions import *
 from monopoly_deal.game import *
 
@@ -121,12 +122,8 @@ def get_available_actions_for_player(player: Player, game: Game):
     return card_actions
 
 
-def play_game():
-    game = new_game(2)
-    agents = {player.index: RandomAgent() for player in game.players}
+def play_game(game: Game, agents: Dict[Player, Agent]):
     n_turns = 0
-    import time
-    t = time.time()
     while not game.winner():
         current_player = game.current_player()
         game = game.draw_cards(num_to_draw=2)
@@ -173,6 +170,12 @@ def play_game():
         if len(game.game_deck) == 0:
             print("Out of cards")
             break
-        if n_turns > 250:
-            import ipdb; ipdb.set_trace()
-            break
+    return game
+
+
+def sim_new_game():
+    game = new_game(2)
+    agents = {player.index: RandomAgent() for player in game.players}
+    game = play_game(game=game, agents=agents)
+    return game
+

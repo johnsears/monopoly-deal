@@ -6,6 +6,7 @@ from monopoly_deal.game import *
 
 MAX_CARDS_IN_HAND = 7
 
+
 class Action:
     respondable = False
 
@@ -233,4 +234,3 @@ def get_discard_options(player: Player):
     num_needed_to_discard = len(player.hand.cards_in_hand) - MAX_CARDS_IN_HAND
     potential_discards = combinations(player.hand.cards_in_hand, num_needed_to_discard)
     return [Discard(discard_cards=tuple(cards)) for cards in potential_discards]
-
