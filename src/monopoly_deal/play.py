@@ -73,8 +73,6 @@ def execute_actions(game: Game, actions: List[Tuple[Player, Card, Action]]):
                         stolen_to_player=action.target_player,
                         stolen_from_player=player
                     )
-                elif isinstance(action, Discard):
-                    game = game.discard_card(card=card)
                 elif isinstance(action, ChangeColor):
                     pass
                 elif isinstance(action, Draw):
@@ -86,6 +84,10 @@ def execute_actions(game: Game, actions: List[Tuple[Player, Card, Action]]):
                     game = game.play_property_card(card=action.property_card, color=action.color)
                 elif isinstance(action, PlayAsCash):
                     game = game.play_cash_card(card=action.cash_card)
+                elif isinstance(action, Discard):
+                    for card in action.discard_cards:
+                        game = game.discard_card(card=card)
+
     return game
 
 
@@ -119,57 +121,13 @@ def get_available_actions_for_player(player: Player, game: Game):
     return card_actions
 
 
-def get_available_responses(player: Player, actions: List[Tuple[Player, Card, Action]]):
-    available_responses = {None: [NoResponse()]}
-    current_hand = player.hand
-    for current_player, card_to_play, action in actions:
-        if player.index == current_player.index and card_to_play is not None:
-            current_hand = current_hand.play_card(card_to_play)
-
-    opposing_player, cards_to_play, action = actions[-1]
-    if isinstance(action, Charge):
-        available_payment_options = []
-        # If wipes them out, give everything
-        if action.amount >= player.board.get_total_value():
-            pay = Pay(
-                pay_to_player=opposing_player,
-                cash_cards=player.board.cash_cards,
-                property_cards=player.board.get_all_property_cards()
-            )
-            available_payment_options.append(pay)
-        else:
-            # Try paying with largest bills first
-            cash_cards_to_pay = player.board.find_cash_to_pay_bill_up_to_amount(bill_amount=action.amount)
-            cash_value = sum([card.value for card in cash_cards_to_pay])
-            if cash_value == action.amount:
-                pay = Pay(pay_to_player=opposing_player, cash_cards=tuple(cash_cards_to_pay), property_cards=tuple())
-                available_payment_options.append(pay)
-            else:
-                payment_options = player.board.find_additional_cards_to_pay_bill(
-                    bill_amount=action.amount,
-                    cards_in_payment=cash_cards_to_pay
-                )
-                for payment_set in payment_options:
-                    cash_cards: Tuple[Cashable] = tuple([card for card in payment_set if isinstance(card, Cashable)])
-                    property_cards = tuple([card for card in payment_set if isinstance(card, PropertyCard)])
-                    pay = Pay(pay_to_player=opposing_player, cash_cards=cash_cards, property_cards=property_cards)
-                    available_payment_options.append(pay)
-        if available_payment_options:
-            available_responses[None] = available_payment_options
-    for card in current_hand.cards_in_hand:
-        if isinstance(card, ActionCard):
-            if card.action_type == ActionType.JUST_SAY_NO:
-                available_responses[card] = [SayNo(to_player=opposing_player)]
-                break
-    return available_responses
-
-
 def play_game():
     game = new_game(2)
     agents = {player.index: RandomAgent() for player in game.players}
     n_turns = 0
+    import time
+    t = time.time()
     while not game.winner():
-        # print("New turn")
         current_player = game.current_player()
         game = game.draw_cards(num_to_draw=2)
         while game.cards_played < MAX_PLAYS_PER_TURN and current_player.index == game.current_player().index:
@@ -183,7 +141,6 @@ def play_game():
             actions = []
             card_to_play, action = agents[current_player.index].get_action(game, [], available_actions)
             if isinstance(action, EndTurn):
-                # print("Ended turn")
                 break
 
             actions.append((current_player, card_to_play, action))
@@ -202,7 +159,20 @@ def play_game():
 
                 actions.append((player, card_to_play, action))
             game = execute_actions(game, actions)
+
+        # Force a discard if player has too many cards left
+        current_player = game.current_player()
+        if len(current_player.hand.cards_in_hand) > MAX_CARDS_IN_HAND:
+            discard_options = get_discard_options(player=current_player)
+            action = agents[current_player.index].get_discard_action(game, actions, discard_options)
+            actions = [(current_player, None, action)]
+            game = execute_actions(game, actions)
+
         game = game.end_turn()
         n_turns += 1
+        if len(game.game_deck) == 0:
+            print("Out of cards")
+            break
         if n_turns > 250:
+            import ipdb; ipdb.set_trace()
             break

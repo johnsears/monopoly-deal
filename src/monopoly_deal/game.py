@@ -1,5 +1,6 @@
 import random
 
+from itertools import combinations
 from typing import Any, Union, Tuple, Set, List, Iterable
 
 from monopoly_deal.cards import *
@@ -213,22 +214,36 @@ class Board(CardLocation):
     def find_additional_cards_to_pay_bill(self, bill_amount: int, cards_in_payment: Tuple[Card]):
         """Return all sets of cards that can pay for bill"""
         tally = Board.get_value_of_cards(cards=cards_in_payment)
-        if tally >= bill_amount:
-            return {frozenset(cards_in_payment)}
-
-        suitable_payments = set({})
-        for card in self.cash_cards + self.get_all_property_cards():
-            if card not in cards_in_payment:
-                suitable_payments = suitable_payments.union(
-                    self.find_additional_cards_to_pay_bill(
-                        bill_amount=bill_amount,
-                        cards_in_payment=append_tuple(tup=cards_in_payment, new_element=card)
-                    )
-                )
-        return suitable_payments
+        eligible_cards = [
+            card for card in self.cash_cards + self.get_all_property_cards()
+            if card not in cards_in_payment and card.value > 0
+        ]
+        potential_payments = self._powerset_with_minimum_value(iterable=eligible_cards, minimum_value_of_set=bill_amount - tally)
+        return {frozenset(tuple(cards) + cards_in_payment) for cards in potential_payments}
 
     def serialize(self):
         return tuple(card.index for card in self.cash_cards), tuple(pset.serialize() for pset in self.property_sets)
+
+    def _powerset_with_minimum_value(self, iterable, minimum_value_of_set: int):
+        s = list(iterable)
+        out = set()
+
+        def unique(combo, out):
+            """Filter out sets of cards that are supersets of existing payment options"""
+            # This lets us find only minimally covering payments (you should never add cards to a payment that already
+            # satisfies the charge)
+            for el in out:
+                if set(el).issubset(combo):
+                    return False
+            return True
+
+        for r in range(1, len(s) + 1):
+            out = out.union(
+                {combo for combo in combinations(s, r) if unique(combo, out)
+                    and self.get_value_of_cards(combo) >= minimum_value_of_set
+                 }
+            )
+        return out
 
     def __repr__(self):
         return f'<Board: Cash: {self.cash_cards}, Properties: {self.property_sets}>'
@@ -356,15 +371,17 @@ class Game:
     def draw_cards(self, num_to_draw: int, player: Player = None, as_move: bool = False):
         discard_pile = self.discard_pile
         cards = tuple()
-        if num_to_draw >= len(self.game_deck):
-            cards = self.game_deck
-            game_deck = list(discard_pile.discarded_cards)
+        game_deck = self.game_deck
+        if num_to_draw >= len(game_deck):
+            cards = tuple(deck[i] for i in game_deck)
+            game_deck = [card.index for card in self.discard_pile.discarded_cards]
             random.shuffle(game_deck)
             game_deck = tuple(game_deck)
             discard_pile = DiscardPile(discarded_cards=tuple())
             num_to_draw -= len(cards)
-        cards = cards + tuple(deck[self.game_deck[i]] for i in range(num_to_draw))
-        game_deck = self.game_deck[num_to_draw:]
+
+        cards = cards + tuple(deck[game_deck[i]] for i in range(min(len(game_deck), num_to_draw)))
+        game_deck = game_deck[num_to_draw:]
 
         player = player or self.current_player()
         new_player = player.draw_cards(cards=cards)
@@ -376,8 +393,8 @@ class Game:
             game_deck=game_deck
         )
 
-    def discard_card(self, card: Card):
-        player = self.current_player()
+    def discard_card(self, card: Card, player: Player = None):
+        player = player or self.current_player()
         new_player = player.discard_card(card=card)
         discard_pile = self.discard_pile.discard_card(card=card)
         return Game(
@@ -495,4 +512,3 @@ class Game:
     def get_next_player_index(self):
         ind = (self.current_turn_index + 1) % len(self.players)
         return ind
-

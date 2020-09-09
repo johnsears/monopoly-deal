@@ -1,7 +1,10 @@
+from itertools import combinations
 from typing import List, Union
 
 from monopoly_deal.cards import *
 from monopoly_deal.game import *
+
+MAX_CARDS_IN_HAND = 7
 
 class Action:
     respondable = False
@@ -66,9 +69,10 @@ class Pay(Action):
     def __repr__(self):
         return f'<Pay {self.cash_cards} + {self.property_cards} to {self.target_player.index}'
 
+
 class Discard(Action):
-    def __init__(self, discard_card: Card):
-        self.discard_card = discard_card
+    def __init__(self, discard_cards: Tuple[Card]):
+        self.discard_cards = discard_cards
         self.respondable = False
 
 
@@ -178,4 +182,55 @@ def get_available_actions(card: Card, players: Tuple[Player], current_player: Pl
                                                         )
                                                     )
     return available_actions
+
+
+def get_available_responses(player: Player, actions: List[Tuple[Player, Card, Action]]):
+    available_responses = {None: [NoResponse()]}
+    current_hand = player.hand
+    for current_player, card_to_play, action in actions:
+        if player.index == current_player.index and card_to_play is not None:
+            current_hand = current_hand.play_card(card_to_play)
+
+    opposing_player, card_to_play, action = actions[-1]
+    if isinstance(action, Charge):
+        available_payment_options = []
+        # If wipes them out, give everything
+        if action.amount >= player.board.get_total_value():
+            pay = Pay(
+                pay_to_player=opposing_player,
+                cash_cards=player.board.cash_cards,
+                property_cards=player.board.get_all_property_cards()
+            )
+            available_payment_options.append(pay)
+        else:
+            # Try paying with largest bills first
+            cash_cards_to_pay = player.board.find_cash_to_pay_bill_up_to_amount(bill_amount=action.amount)
+            cash_value = sum([card.value for card in cash_cards_to_pay])
+            if cash_value == action.amount:
+                pay = Pay(pay_to_player=opposing_player, cash_cards=tuple(cash_cards_to_pay), property_cards=tuple())
+                available_payment_options.append(pay)
+            else:
+                payment_options = player.board.find_additional_cards_to_pay_bill(
+                    bill_amount=action.amount,
+                    cards_in_payment=cash_cards_to_pay
+                )
+                for payment_set in payment_options:
+                    cash_cards: Tuple[Cashable] = tuple([card for card in payment_set if isinstance(card, Cashable)])
+                    property_cards = tuple([card for card in payment_set if isinstance(card, PropertyCard)])
+                    pay = Pay(pay_to_player=opposing_player, cash_cards=cash_cards, property_cards=property_cards)
+                    available_payment_options.append(pay)
+        if available_payment_options:
+            available_responses[None] = available_payment_options
+    for card in current_hand.cards_in_hand:
+        if isinstance(card, ActionCard):
+            if card.action_type == ActionType.JUST_SAY_NO:
+                available_responses[card] = [SayNo(to_player=opposing_player)]
+                break
+    return available_responses
+
+
+def get_discard_options(player: Player):
+    num_needed_to_discard = len(player.hand.cards_in_hand) - MAX_CARDS_IN_HAND
+    potential_discards = combinations(player.hand.cards_in_hand, num_needed_to_discard)
+    return [Discard(discard_cards=tuple(cards)) for cards in potential_discards]
 

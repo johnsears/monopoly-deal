@@ -47,7 +47,7 @@ class RentCard(Cashable):
         self.wild = wild  # Boolean - Targeting
 
     def __repr__(self):
-        return f'<RentCard: {self.colors}>'
+        return f'<RentCard: {self.colors} (${self.value})>'
 
 
 class ActionType(Enum):

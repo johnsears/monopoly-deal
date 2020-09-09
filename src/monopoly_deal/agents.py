@@ -22,4 +22,6 @@ class RandomAgent:
         action_to_happen = random.choice(available_responses[card_to_play])
         return card_to_play, action_to_happen
 
-
+    def get_discard_action(self, game: Game, actions: List[Action], discard_options: List[Action]):
+        discard_choice = random.choice(discard_options)
+        return discard_choice
