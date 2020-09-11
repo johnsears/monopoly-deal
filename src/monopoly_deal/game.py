@@ -353,12 +353,13 @@ class Player:
 
 class Game:
     def __init__(self, players: Tuple[Player], discard_pile: DiscardPile, current_turn_index: int,
-                 cards_played: int, game_deck: Tuple[Card]):
+                 cards_played: int, game_deck: Tuple[int], state: float):
         self.players = players
         self.discard_pile = discard_pile
         self.current_turn_index = current_turn_index
         self.cards_played = cards_played
         self.game_deck = game_deck
+        self.state = state
 
     def current_player(self):
         return self.players[self.current_turn_index]
@@ -390,7 +391,8 @@ class Game:
             discard_pile=discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played + (1 if as_move else 0),
-            game_deck=game_deck
+            game_deck=game_deck,
+            state=self.state
         )
 
     def discard_card(self, card: Card, player: Player = None):
@@ -402,7 +404,8 @@ class Game:
             discard_pile=discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def play_cash_card(self, card: Union[ActionCard, CashCard]):
@@ -413,7 +416,8 @@ class Game:
             discard_pile=self.discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played + 1,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def play_property_card(self, card: PropertyCard, color: Color):
@@ -424,7 +428,8 @@ class Game:
             discard_pile=self.discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played + 1,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def play_action_card(self, card: ActionCard, player: Player = None, is_response: bool = False):
@@ -436,7 +441,8 @@ class Game:
             discard_pile=self.discard_pile.discard_card(card=card),
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played + 1 if not is_response else 0,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def steal_property_card(self, card: PropertyCard, stolen_to_player: Player, stolen_from_player: Player):
@@ -453,7 +459,8 @@ class Game:
             discard_pile=self.discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def steal_complete_set(self, property_set: PropertySet, stolen_to_player: Player, stolen_from_player: Player):
@@ -469,7 +476,8 @@ class Game:
             discard_pile=self.discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def charge_player(self, cash_cards: Tuple[Cashable], property_cards: Tuple[PropertyCard],
@@ -492,7 +500,8 @@ class Game:
             discard_pile=self.discard_pile,
             current_turn_index=self.current_turn_index,
             cards_played=self.cards_played,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
         )
 
     def end_turn(self):
@@ -501,7 +510,18 @@ class Game:
             discard_pile=self.discard_pile,
             current_turn_index=self.get_next_player_index(),
             cards_played=0,
-            game_deck=self.game_deck
+            game_deck=self.game_deck,
+            state=self.state
+        )
+
+    def set_state(self, state: float):
+        return Game(
+            players=self.players,
+            discard_pile=self.discard_pile,
+            current_turn_index=self.current_turn_index,
+            cards_played=self.cards_played,
+            game_deck=self.game_deck,
+            state=state
         )
 
     def serialize(self):

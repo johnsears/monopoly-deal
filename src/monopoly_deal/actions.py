@@ -233,4 +233,4 @@ def get_available_responses(player: Player, actions: List[Tuple[Player, Card, Ac
 def get_discard_options(player: Player):
     num_needed_to_discard = len(player.hand.cards_in_hand) - MAX_CARDS_IN_HAND
     potential_discards = combinations(player.hand.cards_in_hand, num_needed_to_discard)
-    return [Discard(discard_cards=tuple(cards)) for cards in potential_discards]
+    return {None: [Discard(discard_cards=tuple(cards)) for cards in potential_discards]}

@@ -9,7 +9,7 @@ from monopoly_deal.game import *
 NUM_CARDS_TO_DRAW_IN_HAND = 5
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def is_rejected(actions: List[Tuple[Player, Card, Action]]):
@@ -25,7 +25,7 @@ def is_rejected(actions: List[Tuple[Player, Card, Action]]):
     return reject == 1
 
 
-def execute_actions(game: Game, actions: List[Tuple[Player, Card, Action]]):
+def execute_actions(game: Game, actions: List[Tuple[Player, Card, Action]], debug=False):
     # Check if whole thing is moot
     if is_rejected(actions=actions):
         for player, card, action in actions:
@@ -35,7 +35,7 @@ def execute_actions(game: Game, actions: List[Tuple[Player, Card, Action]]):
     else:
         # Otherwise play them out
         for player, card, action in actions:
-            # print(f'{player.index} ({game.cards_played}): played {card} to drive {action}')
+            logger.debug(f'{player.index} ({game.cards_played}): played {card} to drive {action}')
             if isinstance(action, Pay):
                 game = game.charge_player(
                     cash_cards=action.cash_cards,
@@ -105,7 +105,8 @@ def new_game(num_players: int):
         discard_pile=DiscardPile(discarded_cards=tuple()),
         current_turn_index=0,
         cards_played=0,
-        game_deck=tuple(game_deck)
+        game_deck=tuple(game_deck),
+        state=0
     )
     for player in players:
         game = game.draw_cards(num_to_draw=NUM_CARDS_TO_DRAW_IN_HAND, player=player)
@@ -122,60 +123,68 @@ def get_available_actions_for_player(player: Player, game: Game):
     return card_actions
 
 
-def play_game(game: Game, agents: Dict[Player, Agent]):
-    n_turns = 0
+def step(game: Game, card_to_play: Card, action: Action, actions: Tuple = None, debug=False):
+    # Maintain a list of valid plays in `actions`
+    # Each element is a tuple of
+    # 1. Player
+    # 2. Set of cards to play (will only be one unless it's a payment)
+    # 3. Action to be executed
     while not game.winner():
         current_player = game.current_player()
-        game = game.draw_cards(num_to_draw=2)
-        while game.cards_played < MAX_PLAYS_PER_TURN and current_player.index == game.current_player().index:
+        if game.state == 0:
+            logger.debug(f"{current_player.index} Draw cards")
+            game = game.draw_cards(num_to_draw=2)
+            game = game.set_state(1)
+        if 1 <= game.state < 3:
+            while game.cards_played < MAX_PLAYS_PER_TURN and current_player.index == game.current_player().index:
+                current_player = game.current_player()
+                if game.state == 1:
+                    logger.debug(f"{current_player.index} Get actions")
+                    available_actions = get_available_actions_for_player(player=current_player, game=game)
+                    return current_player, game.set_state(1.5), tuple(), available_actions, game.winner() is not None
+                if game.state == 1.5:
+                    logger.debug(f"{current_player.index} Take action {action}")
+                    if isinstance(action, EndTurn):
+                        logger.debug(f"{current_player.index} End turn")
+                        break
+                    actions = append_tuple(tup=actions, new_element=(current_player, card_to_play, action))
+                    game = game.set_state(2)
+                if 2 <= game.state < 3:
+                    last_action = actions[-1][2]  # Get most recent action
+                    while last_action.respondable:
+                        player = last_action.target_player
+                        if game.state == 2:
+                            logger.debug(f"{player.index} Get response to {last_action}")
+                            available_responses = get_available_responses(player=player, actions=actions)
+                            return player, game.set_state(2.5), actions, available_responses, game.winner() is not None
+                        if game.state == 2.5:
+                            actions = append_tuple(tup=actions, new_element=(player, card_to_play, action))
+                            logger.debug(f"{player.index} Respond with  {action}")
+                            game = game.set_state(2)
+                            last_action = action
+                    game = execute_actions(game, actions, debug=debug)
+                    actions = tuple()  # Reset actions
+                    game = game.set_state(1)
+                    logger.debug(f"{current_player.index} End of play")
+            game = game.set_state(3)
+        if 3 <= game.state < 4:
+            # Force a discard if player has too many cards left
             current_player = game.current_player()
-            available_actions = get_available_actions_for_player(player=current_player, game=game)
-            # Maintain a list of valid plays
-            # Each element is a tuple of
-            # 1. Player
-            # 2. Set of cards to play (will only be one unless it's a payment)
-            # 3. Action to be executed
-            actions = []
-            card_to_play, action = agents[current_player.index].get_action(game, [], available_actions)
-            if isinstance(action, EndTurn):
+            if len(current_player.hand.cards_in_hand) > MAX_CARDS_IN_HAND:
+                if game.state == 3:
+                    logger.debug(f"{current_player.index} Must discard")
+                    discard_options = get_discard_options(player=current_player)
+                    return current_player, game.set_state(3.5), tuple(), discard_options, game.winner() is not None
+                if game.state == 3.5:
+                    actions = ((current_player, None, action),)
+                    logger.debug(f"{current_player.index} Discards {action}")
+                    game = execute_actions(game, actions, debug=debug)
+
+            game = game.end_turn()
+            logger.debug(f"{current_player.index} Ends turn")
+            actions = tuple()  # Reset actions in case there were discards
+            game = game.set_state(0)
+            if len(game.game_deck) == 0:
+                logger.warning("Out of cards")
                 break
-
-            actions.append((current_player, card_to_play, action))
-            while action.respondable:
-                player = action.target_player
-                prev_action = action
-
-                available_responses = get_available_responses(player=player, actions=actions)
-                card_to_play, action = agents[player.index].get_response(game, actions, available_responses)
-
-                if isinstance(prev_action, Charge):
-                    assert isinstance(action, Pay) or isinstance(action, SayNo), "Must either pay or reject a charge"
-                    if isinstance(action, Pay):
-                        assert (action.get_amount() >= prev_action.amount or
-                                action.get_amount() == player.board.get_total_value()), "Must pay in full"
-
-                actions.append((player, card_to_play, action))
-            game = execute_actions(game, actions)
-
-        # Force a discard if player has too many cards left
-        current_player = game.current_player()
-        if len(current_player.hand.cards_in_hand) > MAX_CARDS_IN_HAND:
-            discard_options = get_discard_options(player=current_player)
-            action = agents[current_player.index].get_discard_action(game, actions, discard_options)
-            actions = [(current_player, None, action)]
-            game = execute_actions(game, actions)
-
-        game = game.end_turn()
-        n_turns += 1
-        if len(game.game_deck) == 0:
-            print("Out of cards")
-            break
-    return game
-
-
-def sim_new_game():
-    game = new_game(2)
-    agents = {player.index: RandomAgent() for player in game.players}
-    game = play_game(game=game, agents=agents)
-    return game
-
+    return game.winner(), game, None, None, True

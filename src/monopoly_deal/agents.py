@@ -1,5 +1,6 @@
 import random
 
+from abc import abstractmethod
 from typing import List, Dict
 
 from monopoly_deal.actions import Action
@@ -8,7 +9,17 @@ from monopoly_deal.game import Game
 
 
 class Agent:
-    pass
+    @abstractmethod
+    def get_action(self, game: Game, actions: List[Action], available_actions: Dict[Card, List[Action]]):
+        pass
+
+    @abstractmethod
+    def get_response(self, game: Game, actions: List[Action], available_responses: Dict[Card, List[Action]]):
+        pass
+
+    @abstractmethod
+    def get_discard_action(self, game: Game, actions: List[Action], discard_options: List[Action]):
+        pass
 
 
 class RandomAgent(Agent):
@@ -24,5 +35,5 @@ class RandomAgent(Agent):
 
     def get_discard_action(self, game: Game, actions: List[Action], discard_options: List[Action]):
         discard_choice = random.choice(discard_options)
-        return discard_choice
+        return None, discard_choice
 
